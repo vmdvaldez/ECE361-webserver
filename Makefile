@@ -1,21 +1,25 @@
+CC = gcc
+FLAGS = -c -o
+o_dir = ./object/
+
 all: common.o client.o server.o
-	gcc client.c ./object/common.o -o deliver
-	gcc server.c ./object/common.o -o server
+	$(CC)  client.c $(o_dir)common.o -o deliver
+	$(CC)  server.c $(o_dir)common.o -o server
 
 common.o:
-	gcc common.c -c -o ./object/common.o
+	$(CC)  common.c $(FLAGS) $(o_dir)common.o
 
 client.o: 
-	gcc client.c -c -o ./object/client.o
+	$(CC)  client.c $(FLAGS) $(o_dir)client.o
 
 server.o:
-	gcc server.c -c	-o ./object/server.o
+	$(CC)  server.c $(FLAGS) $(o_dir)server.o
 
 
 delfiles:
 	rm -r ./serverfiles/*
 
 clean:
-	rm -r ./object/*
+	rm -r $(o_dir)*
 	rm server
 	rm deliver
