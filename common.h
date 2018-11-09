@@ -5,12 +5,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <iostream>
 #include <assert.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <time.h>
 #include <stdbool.h>
 #include <math.h>
+#include <string>
+#include <sstream>
+#include <fstream>
+#include <vector>
 
 
 #define MAX_NAME 50
@@ -24,7 +29,7 @@ struct message {
 	unsigned char source[MAX_NAME];
 	unsigned char data[MAX_DATA];
 
-	bool signup;
+	bool signup = false;
 };
 
 enum control{
@@ -44,11 +49,11 @@ enum control{
 };
 
 struct name_psswd{
-	char user_name[20];
-	char password[10];
+	std::string user_name;
+	std::string password;
 };
 
-void addrinfo_init(char * IP, char * PORT, struct addrinfo * hints, struct addrinfo ** res);
-char* name_to_IP(char * name);
-void get_users(struct name_psswd * n_p);
-bool user_exists(struct name_psswd * n_p, bool * pass_exists, struct message user_pass);
+void addrinfo_init(const char * IP, const char * PORT, struct addrinfo * hints, struct addrinfo ** res);
+char* name_to_IP(const char * name);
+void get_users(std::vector<struct name_psswd>& n_p);
+bool user_exists(std::vector<struct name_psswd> n_p, bool * pass_exists, struct message user_pass);

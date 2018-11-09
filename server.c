@@ -3,8 +3,13 @@
 int main(int argc, char** argv)
 {
 
-	struct addrinfo hints, *res;
 
+	// Create Array of Users based on registration list.
+	std::vector <struct name_psswd> name_pass;
+	get_users(name_pass);
+	
+	// Connection establishment
+	struct addrinfo hints, *res;
 	addrinfo_init(NULL, argv[1], &hints, &res);
 
 	int sckt, ret;
@@ -27,16 +32,14 @@ int main(int argc, char** argv)
 		perror("Accept Error");
 	assert(ret >= 0);
 
-	int new_fd = ret;
 
+	// Client msg
+	int new_fd = ret;
 	struct message msg;
 	recv(new_fd, &msg, sizeof(msg), 0);
 
-	struct name_psswd name_pass[100] = {0};
 
-	get_users(name_pass);
-	
-	
+	// Checks if user and pass status
 	if(msg.signup)
 	{
 		if(user_exists(name_pass, NULL, msg)){
@@ -45,12 +48,10 @@ int main(int argc, char** argv)
 			return 0;
 		}
 
-		FILE * client_list = fopen("./Users/clients.txt", "ab+");
-		fprintf(client_list, msg.source, 0);
-		fprintf(client_list, " ", 0);
-		fprintf(client_list, msg.data, 0);
-		fprintf(client_list, "\n", 0);
+		std::ofstream client_list("./Users/clients.txt", std::ofstream::app);
+		client_list << msg.source << " " << msg.data << std::endl;
 
+		client_list.close();
 		printf("Signup Successful\n");
 	}
 	else
@@ -71,7 +72,8 @@ int main(int argc, char** argv)
 
 		printf("Login Successful\n");
 
-
 	}
+
+	close(sckt);
 
 }

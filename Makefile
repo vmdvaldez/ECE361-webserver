@@ -1,10 +1,11 @@
-CC = gcc
-FLAGS = -c -o
+CC = g++
+eflag = -std=c++11 -o 
+FLAGS = -std=c++11 -c -o 
 o_dir = ./object/
 
 all: common.o client.o server.o
-	$(CC)  client.c $(o_dir)common.o -o deliver
-	$(CC)  server.c $(o_dir)common.o -o server
+	$(CC)  client.c $(o_dir)common.o $(eflag) deliver
+	$(CC)  server.c $(o_dir)common.o $(eflag) server
 
 common.o:
 	$(CC)  common.c $(FLAGS) $(o_dir)common.o

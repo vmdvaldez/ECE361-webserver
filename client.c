@@ -4,36 +4,40 @@
 int main(int argc, char** argv)
 {
 
-	char command[10], client_ID[20], psswd[10], server_IP[20], server_port[10];
+
 	struct message msg;
 	int signup;
 
-	printf("1: SIGNUP\n2: LOGIN\n");
-	scanf("%d\n", &signup);
+	//Asks User to signup or Login
+	std::cout << "1: SIGNUP" <<std::endl << "2: LOGIN" << std::endl;
+	std::cin >> signup;
+	std::cin.ignore();
 
 	if(signup == 1)
 		msg.signup = true;
-	else
-		msg.signup = false;
 
-	scanf("%s\n",command);
-	// printf("%s\n",command);
+	std::string input, command, client_ID, psswd, server_IP, server_port;
 
-	if(strcmp(command, "/login") != 0)
+	// makes sure client logs in first
+	do 
 	{
-		printf("Login first\n");
-		scanf("%s\n", command);		
-	}
+		std::getline(std::cin, input);
+		std::stringstream ss(input);
+
+		ss >> command >> client_ID >> psswd >> server_IP >> server_port;
+		std::cout << command << std::endl;
+
+		if(command != "/login")
+		 	std::cout << "Login first" << std::endl;
+
+				
+	}while(command != "/login");
 
 
-	scanf("%s%s%s%s", client_ID, psswd, server_IP, server_port);
-	// printf("%s,%s,%s,%s\n", client_ID, psswd, server_IP, server_port);
-
-	// printf("%d, %d ,%d\n", c_LOGIN, c_LO_ACK, c_LO_NACK);
-
+	//Connection establishment
 	struct addrinfo hints, *res;
 
-	addrinfo_init(name_to_IP(server_IP), server_port, &hints, &res);
+	addrinfo_init(name_to_IP(server_IP.c_str()), server_port.c_str(), &hints, &res);
 
 	int sckt, ret;
 	
@@ -45,11 +49,13 @@ int main(int argc, char** argv)
 		perror("Connect error");
 	assert(!ret);
 
+	// Creates login message
 	msg.type = c_LOGIN;
-	msg.size = strlen(psswd);
-	strcpy(msg.source, client_ID);
-	strcpy(msg.data, psswd);
+	msg.size = psswd.length();
+	memcpy(&msg.source, client_ID.c_str(), client_ID.length() + 1);
+	memcpy(&msg.data, psswd.c_str(), psswd.length() + 1);
 
 	send(sckt, &msg, sizeof(msg), 0);
 
+	close(sckt);
 }

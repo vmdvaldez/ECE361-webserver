@@ -1,6 +1,6 @@
 #include "common.h"
 
-void addrinfo_init(char * IP, char * PORT, struct addrinfo * hints, struct addrinfo ** res)
+void addrinfo_init(const char * IP, const char * PORT, struct addrinfo * hints, struct addrinfo ** res)
 {
 	memset(hints, 0, sizeof(struct addrinfo));
 	hints->ai_family = AF_INET;
@@ -10,7 +10,7 @@ void addrinfo_init(char * IP, char * PORT, struct addrinfo * hints, struct addri
 	assert(!getaddrinfo(IP, PORT, hints, res));
 }
 
-char* name_to_IP(char * name)
+char* name_to_IP(const char * name)
 {
 	struct hostent* hostname = gethostbyname(name);
 	assert(hostname);
@@ -22,28 +22,33 @@ char* name_to_IP(char * name)
 	return inet_ntoa(*addr_list[0]);
 }
 
-void get_users(struct name_psswd * n_p)
+void get_users(std::vector<struct name_psswd>& n_p)
 {
-	FILE * client_list = fopen("./Users/clients.txt", "r");
+	std::ifstream client_list("./Users/clients.txt", std::ifstream::in);
 	assert(client_list);
 
-	for(int i = 0; feof(client_list) == 0; ++i)
+	for(int i = 0; !client_list.eof(); ++i)
 	{
-		fscanf(client_list, "%s", n_p[i].user_name);
-		fscanf(client_list, "%s", n_p[i].password);
-		printf("User:%s, Password:%s\n", n_p[i].user_name, n_p[i].password);
+		std::string user, pas;
 
+		client_list >> user;
+		client_list >> pas;
+
+		struct name_psswd u_p{user, pas};
+		n_p.push_back(u_p);
+		std::cout << "Username: " << n_p[i].user_name << " Password: "<< n_p[i].password << std::endl;
 	}
+	n_p.erase(n_p.end());
+	client_list.close();
 	
-	fclose(client_list);
 }
 
-bool user_exists(struct name_psswd * n_p, bool * pass_exists, struct message user_pass)
+bool user_exists(std::vector<struct name_psswd> n_p, bool * pass_exists, struct message user_pass)
 {
-	for(int i = 0; n_p[i].user_name[0] != 0; ++i)
-		if(strcmp(n_p[i].user_name, user_pass.source) == 0)
+	for(int i = 0; i < n_p.size(); ++i)
+		if(strcmp(n_p[i].user_name.c_str(), (const char*)user_pass.source) == 0)
 		{
-			if(pass_exists != NULL && strcmp(n_p[i].password, user_pass.data) == 0)
+			if(pass_exists != NULL && strcmp(n_p[i].password.c_str() , (const char*)user_pass.data) == 0)
 				*pass_exists = true;
 
 			return true;
@@ -51,3 +56,4 @@ bool user_exists(struct name_psswd * n_p, bool * pass_exists, struct message use
 
 	return false;
 }
+
