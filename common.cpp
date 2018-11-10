@@ -56,3 +56,65 @@ bool user_exists(std::vector<struct name_psswd> n_p, bool * pass_exists, struct 
 	return false;
 }
 
+void add_user(std::string name, std::string password)
+{
+	std::ofstream client_list("./Users/clients.txt", std::ofstream::app);
+	client_list << name << " " << password << std::endl;
+	client_list.close();
+}
+
+void gen_ACK(struct message &msg, int type, std::string data)
+{
+	msg.type = type;
+
+	switch(type)
+	{
+		case c_LO_ACK:
+		case c_LO_NACK:
+		case c_NS_ACK:
+			msg.size = data.length() + 1;
+			memcpy(&msg.data, data.c_str(), data.length() + 1);
+			break;
+
+		default: assert(0);
+
+	}
+}
+
+int connection_establishment(struct addrinfo &hints, struct addrinfo *&res, int type)
+{
+
+	// Type 0: server, Type 1: client
+
+	int sckt, ret;
+	if((sckt = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1)
+		perror("Socket Error");
+	assert(sckt >= 0);
+
+	if(type == 0)
+	{
+		if((ret = bind(sckt, res->ai_addr, res->ai_addrlen)) == -1)
+			perror("Binding Error");
+		assert(ret >= 0);
+
+		if((ret = listen(sckt, BACKLOG)) == -1)
+			perror("Listen Error");
+		assert(ret >= 0);
+	}
+	else
+	{
+		if((ret = connect(sckt, res->ai_addr, res->ai_addrlen)) == -1)
+			perror("Connect error");
+		assert(!ret);
+	}
+
+	return sckt;
+}
+
+void create_msg(struct message& msg, int type, int size, std::string source, std::string data)
+{
+	msg.type = type;
+	msg.size = size;
+	memcpy(&msg.source, source.c_str(), source.length() + 1);
+	memcpy(&msg.data, data.c_str(), data.length() + 1);
+}

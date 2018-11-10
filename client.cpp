@@ -36,27 +36,15 @@ int main(int argc, char** argv)
 
 	//Connection establishment
 	struct addrinfo hints, *res;
-
 	addrinfo_init(name_to_IP(server_IP.c_str()), server_port.c_str(), &hints, &res);
-
-	int sckt, ret;
+	int sckt = connection_establishment(hints, res, 1);
 	
-	if((sckt = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1)
-		perror("Socket Error");
-	assert(sckt >= 0);
-
-	if((ret = connect(sckt, res->ai_addr, res->ai_addrlen)) == -1)
-		perror("Connect error");
-	assert(!ret);
 
 	// Creates login message
 
 	while(1)
 	{
-		msg.type = c_LOGIN;
-		msg.size = psswd.length();
-		memcpy(&msg.source, client_ID.c_str(), client_ID.length() + 1);
-		memcpy(&msg.data, psswd.c_str(), psswd.length() + 1);
+		create_msg(msg, c_LOGIN, psswd.length(), client_ID, psswd);
 
 		send(sckt, &msg, sizeof(msg), 0);
 
@@ -68,19 +56,20 @@ int main(int argc, char** argv)
 		}
 		else if(msg.type == c_LO_NACK)
 		{
+			std::string check;
 			do 
 			{
 				std::getline(std::cin, input);
 				std::stringstream ss(input);
 
-				ss >> command >> client_ID >> psswd >> server_IP >> server_port;
-				std::cout << command << std::endl;
+				ss >> check >> client_ID >> psswd >> server_IP >> server_port;
+				// std::cout << command << std::endl;
 
-				if(command != "/login")
+				if(check != "/login")
 				 	std::cout << "Login first" << std::endl;
 
 						
-			}while(command != "/login");
+			}while(check != "/login");
 		}
 	}
 
@@ -88,6 +77,7 @@ int main(int argc, char** argv)
 	while(1)
 	{
 		struct message new_msg;
+		// std::cout << "Enter:" << std::endl;
 		std::getline(std::cin, input);
 		std::stringstream ss(input);
 
@@ -98,19 +88,20 @@ int main(int argc, char** argv)
 			std::string sess_ID;
 			ss >> sess_ID;
 	
-			msg.type = c_NEW_SESS;
-			msg.size = sess_ID.length() + 1;
-			memcpy(&msg.source, client_ID.c_str(), client_ID.length() + 1);
-			memcpy(&msg.data, sess_ID.c_str(), sess_ID.length() + 1);
-					std::cout << msg.source;
+			create_msg(msg, c_NEW_SESS, sess_ID.length() + 1,client_ID, sess_ID);
 			send(sckt, &msg, sizeof(msg), 0);
+			ss.clear();
 		}
+		else if(command == "test")
+			break;
 
-		command = "2412";
+		std::cout << "TEST";
+		// std::cout << command;
+		// command = " ";
 	}
 
 
-
-	// while(1);
 	close(sckt);
 }
+
+// BUGGY connection establish function??
