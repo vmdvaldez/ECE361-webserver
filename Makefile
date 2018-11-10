@@ -4,17 +4,17 @@ FLAGS = -std=c++11 -c -o
 o_dir = ./object/
 
 all: common.o client.o server.o
-	$(CC)  client.c $(o_dir)common.o $(eflag) deliver
-	$(CC)  server.c $(o_dir)common.o $(eflag) server
+	$(CC)  client.cpp $(o_dir)common.o $(eflag) deliver
+	$(CC)  server.cpp $(o_dir)common.o $(eflag) server
 
 common.o:
-	$(CC)  common.c $(FLAGS) $(o_dir)common.o
+	$(CC)  common.cpp $(FLAGS) $(o_dir)common.o
 
 client.o: 
-	$(CC)  client.c $(FLAGS) $(o_dir)client.o
+	$(CC)  client.cpp $(FLAGS) $(o_dir)client.o
 
 server.o:
-	$(CC)  server.c $(FLAGS) $(o_dir)server.o
+	$(CC)  server.cpp $(FLAGS) $(o_dir)server.o
 
 
 delfiles:

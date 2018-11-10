@@ -16,6 +16,7 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
+#include <map>
 
 
 #define MAX_NAME 50
@@ -51,6 +52,11 @@ enum control{
 struct name_psswd{
 	std::string user_name;
 	std::string password;
+};
+
+struct user_socket{
+	std::string user;
+	int socket;
 };
 
 void addrinfo_init(const char * IP, const char * PORT, struct addrinfo * hints, struct addrinfo ** res);

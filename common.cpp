@@ -6,7 +6,6 @@ void addrinfo_init(const char * IP, const char * PORT, struct addrinfo * hints, 
 	hints->ai_family = AF_INET;
 	hints->ai_socktype = SOCK_STREAM;
 	hints->ai_flags = AI_PASSIVE;
-	printf("test\n");
 	assert(!getaddrinfo(IP, PORT, hints, res));
 }
 
@@ -36,7 +35,7 @@ void get_users(std::vector<struct name_psswd>& n_p)
 
 		struct name_psswd u_p{user, pas};
 		n_p.push_back(u_p);
-		std::cout << "Username: " << n_p[i].user_name << " Password: "<< n_p[i].password << std::endl;
+		// std::cout << "Username: " << n_p[i].user_name << " Password: "<< n_p[i].password << std::endl;
 	}
 	n_p.erase(n_p.end());
 	client_list.close();
