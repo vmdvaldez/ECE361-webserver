@@ -19,6 +19,7 @@
 #include <map>
 
 
+
 #define MAX_NAME 50
 #define MAX_DATA 1000
 #define BACKLOG 20
@@ -40,7 +41,7 @@ enum control{
 	c_EXIT,
 	c_JOIN,
 	c_JN_ACK,
-	c_JN_NAK,
+	c_JN_NACK,
 	c_LEAVE_SESS,
 	c_NEW_SESS,
 	c_NS_ACK,
@@ -72,3 +73,5 @@ void add_user(std::string name, std::string password);
 //Create Message
 void gen_ACK(struct message &msg, int type, std::string data);
 void create_msg(struct message& msg, int type, int size, std::string source, std::string data);
+
+;

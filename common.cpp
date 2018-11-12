@@ -67,18 +67,9 @@ void gen_ACK(struct message &msg, int type, std::string data)
 {
 	msg.type = type;
 
-	switch(type)
-	{
-		case c_LO_ACK:
-		case c_LO_NACK:
-		case c_NS_ACK:
-			msg.size = data.length() + 1;
-			memcpy(&msg.data, data.c_str(), data.length() + 1);
-			break;
+	msg.size = data.length() + 1;
+	memcpy(&msg.data, data.c_str(), data.length() + 1);
 
-		default: assert(0);
-
-	}
 }
 
 int connection_establishment(struct addrinfo &hints, struct addrinfo *&res, int type)
@@ -118,3 +109,4 @@ void create_msg(struct message& msg, int type, int size, std::string source, std
 	memcpy(&msg.source, source.c_str(), source.length() + 1);
 	memcpy(&msg.data, data.c_str(), data.length() + 1);
 }
+

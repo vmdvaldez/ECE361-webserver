@@ -84,10 +84,8 @@ int main(int argc, char** argv)
 						if(!pass_exists)
 							gen_ACK(msg, c_LO_NACK, "Wrong Password");
 						else
-						{
 							gen_ACK(msg, c_LO_ACK, "Login Successful");
-							send(client_sockets[i], &msg, sizeof(msg), 0);
-						}	
+
 					}
 
 					send(client_sockets[i], &msg, sizeof(msg), 0);
@@ -115,8 +113,9 @@ int main(int argc, char** argv)
 					// std::cout << source << std::endl  << session_ID << std::endl << client_sockets[i] << std::endl;
 					u_s.push_back(temp);
 					sessions.push_back(u_s);
-							
-					gen_ACK(msg, c_NS_ACK, "Created New Session");
+					
+
+					gen_ACK(msg, c_NS_ACK, session_ID);
 					send(client_sockets[i], &msg, sizeof(msg), 0);
 					// std::cout << (sessions[0])[0].user << (sessions[0])[0].socket <<std::endl;
 
@@ -124,7 +123,58 @@ int main(int argc, char** argv)
 				}
 			}
 				
+
+			else if(msg.type == c_JOIN)
+			{
+				std::string session_ID((char*) msg.data);
+				std::string source((char *)msg.source);
+
+				auto search = hash_sesh.find(session_ID);
+				if(search == hash_sesh.end())
+				{
+					std::string temp = session_ID + "\nReason: Session Does Not Exist.";
+					gen_ACK(msg, c_JN_NACK, temp);
+					send(client_sockets[i], &msg, sizeof(msg), 0);
+				}
+				else
+				{
+					int index = hash_sesh[session_ID];
+					struct user_socket temp = {source, client_sockets[i]};
+
+					std::vector<user_socket>& u_s = sessions[index];
+					u_s.push_back(temp);
+
+					gen_ACK(msg, c_JN_ACK, session_ID);
+					send(client_sockets[i], &msg, sizeof(msg), 0);
+				}
+			}
+
+			else if(msg.type == c_MESSAGE)
+			{
+				std::string source((char*)msg.source);
+				std::vector<user_socket> u_s;
+				// FIX 
+				for(int j = 0 ; i < sessions.size(); ++i)
+					for(auto x : sessions[i])
+						if(x.user == source)
+							u_s = sessions[i];
+
+
+				for(auto x : u_s)
+					if(x.user != source){
+						std::cout << x.socket << x.user;
+						send(x.socket, &msg, sizeof(msg), 0);
+					}
+			}
+			// for(i = 0 ; i < sessions.size(); ++i)
+			// 	for(auto j : sessions[i])
+			// 		std::cout << j.user << std::endl;
+
 		} 
+
+
+
+
 	}
 
 	close(main_sckt);
