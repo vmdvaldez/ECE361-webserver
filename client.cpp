@@ -193,6 +193,8 @@ void sending_func(int sckt, std::string client_ID)
 
 			create_msg(msg, c_QUIT, 0, client_ID, "");
 			send(sckt, &msg, sizeof(msg), 0);
+
+			while(exited != 1);
 			
 		}
 		else
