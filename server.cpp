@@ -2,7 +2,7 @@
 
 //Hashing
 unsigned long djb2_hash(char* sess_name);
-struct hash_elem * hash_lookup(unsigned long h_index , std::string session_ID);
+unsigned long hash_lookup(std::string session_ID);
 void hash_insert(unsigned long h_index, std::string user, int socket, std::string session_ID);
 
 //Debugging
@@ -10,6 +10,8 @@ void print_sess_users();
 
 // hashtable; collection of users and their socket associated with the hashed session ID.
 std::unordered_map<unsigned long, struct hash_elem> hash_sesh;
+// reverse hashing
+std::unordered_map<std::string, unsigned long> rev_hash_sesh;
 
 // Sockets of online users; (change to struct user_socket)?? + session they're in
 std::vector <int> client_sockets;
@@ -60,7 +62,7 @@ int main(int argc, char** argv)
 
 		for(int i = 0; i < client_sockets.size(); ++i)
 		{
-			// printf("%d\n", FD_ISSET(client_sockets[i], &read_fds));
+			// std::cout << hash_sesh.size() << std::endl;
 			if(!FD_ISSET(client_sockets[i], &read_fds))
 				continue;
 
@@ -106,11 +108,9 @@ int main(int argc, char** argv)
 				std::string session_ID((char*) msg.data);
 				std::string source((char *)msg.source);
 
-				unsigned long h_index = djb2_hash((char *)session_ID.c_str());
+				unsigned long found_index = hash_lookup(session_ID);
 
-				struct hash_elem * h_elem = hash_lookup(h_index, session_ID);
-
-				if(h_elem != NULL)
+				if(found_index != 0)
 				{
 					std::cout << "hit" << std::endl;
 
@@ -119,9 +119,10 @@ int main(int argc, char** argv)
 				}
 				else
 				{
+					unsigned long h_index = djb2_hash((char *)session_ID.c_str());	
 
 					std::cout << "miss" << std::endl;
-					hash_insert(h_index, source , client_sockets[i],session_ID);
+					hash_insert(h_index, source , client_sockets[i], session_ID);
 
 					gen_ACK(msg, c_NS_ACK, session_ID);
 					send(client_sockets[i], &msg, sizeof(msg), 0);
@@ -135,10 +136,9 @@ int main(int argc, char** argv)
 				std::string session_ID((char*) msg.data);
 				std::string source((char *)msg.source);
 
-				unsigned long h_index = djb2_hash((char *)session_ID.c_str());
-				struct hash_elem * h_elem = hash_lookup(h_index, session_ID);
+				unsigned long found_index = hash_lookup(session_ID);
 
-				if(h_elem == NULL)
+				if(found_index == 0)
 				{
 					std::string nack = session_ID + "\nReason: Session Does Not Exist.";
 					gen_ACK(msg, c_JN_NACK, nack);
@@ -147,6 +147,8 @@ int main(int argc, char** argv)
 				else
 				{
 					bool not_found = true;
+
+					struct hash_elem * h_elem = &hash_sesh[found_index];
 
 					for (auto x : h_elem->u_s)
 						if(x.socket == client_sockets[i])
@@ -190,16 +192,17 @@ int main(int argc, char** argv)
 							u_s = y;
 						}
 						
-				unsigned long h_index = djb2_hash((char *)session_ID.c_str());
-				struct hash_elem * h_elem = hash_lookup(h_index, session_ID);
+				unsigned long found_index = hash_lookup(session_ID);
 
-				if(h_elem == NULL)
+				if(found_index == 0)
 				{
 					//SEND ERROR
 
 				}
 				else
 				{
+					struct hash_elem * h_elem = &hash_sesh[found_index];
+
 					std::vector<user_socket>::iterator it;
 					for(it = h_elem->u_s.begin(); it != h_elem->u_s.end(); ++it)
 						if(it->socket == client_sckt)
@@ -211,7 +214,10 @@ int main(int argc, char** argv)
 
 					
 					if(h_elem->u_s.size() == 0)
-						hash_sesh.erase(h_index);
+					{
+						hash_sesh.erase(found_index);
+						rev_hash_sesh.erase(session_ID);
+					}
 
 
 					// std::cout << h_elem->u_s.size() << std::endl;	
@@ -241,9 +247,9 @@ int main(int argc, char** argv)
 							session_ID = x.second.session_ID;
 						}
 
-				unsigned long h_index = djb2_hash((char *)session_ID.c_str());
-				struct hash_elem * h_elem = hash_lookup(h_index, session_ID);
+				unsigned long found_index = hash_lookup(session_ID);
 
+				struct hash_elem * h_elem = &hash_sesh[found_index];
 
 				for(auto k : h_elem->u_s)
 					if(k.socket != client_sckt)
@@ -255,12 +261,12 @@ int main(int argc, char** argv)
 				std::string source((char *)msg.source);
 				std::string data((char*) msg.data);
 
-				for(auto x : hash_sesh)
-				{
-					std:: cout << std::endl <<"Session: " <<x.second.session_ID << std::endl;
-					for(auto y: x.second.u_s)
-					std::cout << std::endl << "User:" <<y.user <<std::endl;
-				}
+				// for(auto x : hash_sesh)
+				// {
+				// 	std:: cout << std::endl <<"Session: " <<x.second.session_ID << std::endl;
+				// 	for(auto y: x.second.u_s)
+				// 	std::cout << std::endl << "User:" <<y.user <<std::endl;
+				// }
 
 				std::string list;
 				int size = 0;
@@ -288,7 +294,7 @@ int main(int argc, char** argv)
 					}
 					create_msg(msg, c_QUERY, list.length() + 1, source, list);
 					send(client_sockets[i], &msg, sizeof(msg), 0);
-
+					size = 0;
 					list.clear();
 				}
 
@@ -299,7 +305,7 @@ int main(int argc, char** argv)
 
 			else if(msg.type == c_QUIT)
 			{
-				std::cout << "teste"<< client_sockets[i] <<std::endl;
+				// std::cout << "teste"<< client_sockets[i] <<std::endl;
 
 				// std::cout << "bBEFORE" <<std::endl;
 				// for (auto x : client_sockets)
@@ -346,31 +352,17 @@ unsigned long djb2_hash(char* sess_name){
 	while(c = *sess_name++)
 		hash = hash * 33 + c;
 
-	// std::cout << hash << std::endl;
 	return hash;
 }
 
-struct hash_elem * hash_lookup(unsigned long h_index , std::string session_ID)
-{
-	while(hash_sesh[h_index].session_ID != " " || hash_sesh[h_index].deleted)
-	{
-		if(hash_sesh[h_index].deleted)
-			h_index ++;
-		else
-		{
-			if(hash_sesh[h_index].session_ID == session_ID)
-				return &hash_sesh[h_index];
-
-			h_index++;
-		}
-	}
-	return NULL;
-}
+unsigned long hash_lookup(std::string session_ID){ return rev_hash_sesh[session_ID];}
 
 void hash_insert(unsigned long h_index, std::string user, int socket, std::string session_ID)
 {
+	std::cout << hash_sesh.size() <<std::endl;
+
 	while(hash_sesh[h_index].session_ID != " ")
-		h_index ++;
+		h_index++;
 
 	std::vector<struct user_socket> v_us;
 	struct user_socket u_s{user, socket};
@@ -383,7 +375,9 @@ void hash_insert(unsigned long h_index, std::string user, int socket, std::strin
 	h_e.deleted = false;
 
 	hash_sesh[h_index] = h_e;
+	rev_hash_sesh[session_ID] = h_index;
 
+	std::cout << hash_sesh.size() <<std::endl;
 }
 
 
