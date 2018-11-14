@@ -1,5 +1,5 @@
 CC = g++
-eflag = -std=c++11 -o 
+eflag = -pthread -std=c++11 -o 
 FLAGS = -std=c++11 -c -o 
 o_dir = ./object/
 
