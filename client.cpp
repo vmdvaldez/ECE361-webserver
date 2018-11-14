@@ -56,6 +56,15 @@ int main(int argc, char** argv)
 		}
 		else if(msg.type == c_LO_NACK)
 		{
+			std::cout << std::endl << msg.data << std::endl;
+			std::cout << "1: SIGNUP" <<std::endl << "2: LOGIN" << std::endl;
+
+			std::getline(std::cin, input);
+			std::stringstream ss1(input);
+			ss1 >> signup;
+
+			msg.signup = signup == 1 ? true : false;
+
 			std::string check;
 			do 
 			{
@@ -63,7 +72,6 @@ int main(int argc, char** argv)
 				std::stringstream ss(input);
 
 				ss >> check >> client_ID >> psswd >> server_IP >> server_port;
-				// std::cout << command << std::endl;
 
 				if(check != "/login")
 				 	std::cout << "Login first" << std::endl;
@@ -111,9 +119,7 @@ int main(int argc, char** argv)
 				std::cout << "Failed to Create" <<std::endl << "Session: " << msg.data << std::endl;
 				break;
 
-
 		}
-
 	}
 
 	close(sckt);

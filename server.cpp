@@ -74,7 +74,7 @@ int main(int argc, char** argv)
 				if(msg.signup)
 				{
 					if(user_exists(name_pass, NULL, msg))
-						gen_ACK(msg, c_LO_ACK, "User Already Exists");
+						gen_ACK(msg, c_LO_NACK, "User Already Exists");
 					else
 					{
 						add_user((char*)msg.source, (char*)msg.data);
@@ -171,6 +171,11 @@ int main(int argc, char** argv)
 				}
 			}
 
+			else if(msg.type == c_LEAVE_SESS)
+			{
+
+			}
+
 			// else if(msg.type == c_MESSAGE)
 			// {
 			// 	std::string source((char*)msg.source);
@@ -243,6 +248,7 @@ void hash_insert(unsigned long h_index, std::string user, int socket, std::strin
 	hash_sesh[h_index] = h_e;
 
 }
+
 
 
 void print_sess_users()
