@@ -16,7 +16,8 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
-#include <map>
+#include <unordered_map>
+#include <utility>
 
 
 
@@ -60,6 +61,13 @@ struct user_socket{
 	int socket;
 };
 
+struct hash_elem
+{
+	std::string session_ID = " ";
+	std::vector <struct user_socket> u_s;
+	bool deleted = false;
+};
+
 //Connection Establishment Functions
 int connection_establishment(struct addrinfo& hints, struct addrinfo * &res, int type);
 void addrinfo_init(const char * IP, const char * PORT, struct addrinfo * hints, struct addrinfo ** res);
@@ -74,4 +82,3 @@ void add_user(std::string name, std::string password);
 void gen_ACK(struct message &msg, int type, std::string data);
 void create_msg(struct message& msg, int type, int size, std::string source, std::string data);
 
-;
