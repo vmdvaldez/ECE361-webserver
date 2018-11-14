@@ -19,6 +19,7 @@
 #include <unordered_map>
 #include <utility>
 #include <thread>
+#include <algorithm>
 
 
 
@@ -50,7 +51,9 @@ enum control{
 	c_NS_NACK,
 	c_MESSAGE,
 	c_QUERY,
-	c_QU_ACK
+	c_QUACK,
+	c_QUIT,
+	c_QUIT_ACK
 };
 
 struct name_psswd{

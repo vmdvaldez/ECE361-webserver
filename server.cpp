@@ -174,18 +174,155 @@ int main(int argc, char** argv)
 			else if(msg.type == c_LEAVE_SESS)
 			{
 
+				std::string source((char*)msg.source);
+
+				int client_sckt;
+				std::string session_ID;
+				struct user_socket u_s;
+				std::unordered_map<unsigned long, struct hash_elem> hashptr;
+
+
+				for(auto x : hash_sesh)
+					for(auto y : x.second.u_s)
+						if(y.user == source){
+							client_sckt = y.socket;
+							session_ID = x.second.session_ID;
+							u_s = y;
+						}
+						
+				unsigned long h_index = djb2_hash((char *)session_ID.c_str());
+				struct hash_elem * h_elem = hash_lookup(h_index, session_ID);
+
+				if(h_elem == NULL)
+				{
+					//SEND ERROR
+
+				}
+				else
+				{
+					std::vector<user_socket>::iterator it;
+					for(it = h_elem->u_s.begin(); it != h_elem->u_s.end(); ++it)
+						if(it->socket == client_sckt)
+							break;
+
+					// std::cout << h_elem->u_s.size() << std::endl;
+
+					h_elem->u_s.erase(it);
+
+					
+					if(h_elem->u_s.size() == 0)
+						hash_sesh.erase(h_index);
+
+
+					// std::cout << h_elem->u_s.size() << std::endl;	
+
+
+				}
+
+
+
 			}
 
-			// else if(msg.type == c_MESSAGE)
-			// {
-			// 	std::string source((char*)msg.source);
-			// 	std::vector<user_socket> u_s;
+			else if(msg.type == c_MESSAGE)
+			{
+
+				std::string source((char*)msg.source);
+				std::string data((char*) msg.data);
+				// std::vector<user_socket> u_s;
 				
+				int client_sckt;
+				std::string session_ID;
+
+				for(auto x : hash_sesh)
+					for(auto y : x.second.u_s)
+						if(y.user == source)
+						{
+							client_sckt = y.socket;
+							session_ID = x.second.session_ID;
+						}
+
+				unsigned long h_index = djb2_hash((char *)session_ID.c_str());
+				struct hash_elem * h_elem = hash_lookup(h_index, session_ID);
 
 
-			// }
+				for(auto k : h_elem->u_s)
+					if(k.socket != client_sckt)
+						send(k.socket, &msg, sizeof(msg), 0);
+			}
+
+			else if(msg.type == c_QUERY)
+			{
+				std::string source((char *)msg.source);
+				std::string data((char*) msg.data);
+
+				for(auto x : hash_sesh)
+				{
+					std:: cout << std::endl <<"Session: " <<x.second.session_ID << std::endl;
+					for(auto y: x.second.u_s)
+					std::cout << std::endl << "User:" <<y.user <<std::endl;
+				}
+
+				std::string list;
+				int size = 0;
+
+				for(auto x : hash_sesh)
+				{
+					size += 9 + x.second.session_ID.length() + 1;
+					list += "Session: " + x.second.session_ID + "\n";
+
+					for(auto y : x.second.u_s)
+					{
+						if(size + y.user.length() + 1 >= MAX_DATA)
+						{
+							list += "\0";
+							create_msg(msg, c_QUERY, list.length() + 1, source, list);
+							send(client_sockets[i], &msg, sizeof(msg), 0);
+							size = 0;
+							list.clear();
+						}
 
 
+						size += y.user.length() + 1;
+						list += y.user + "\n";
+
+					}
+					create_msg(msg, c_QUERY, list.length() + 1, source, list);
+					send(client_sockets[i], &msg, sizeof(msg), 0);
+
+					list.clear();
+				}
+
+				gen_ACK(msg, c_QUACK, "");
+				send(client_sockets[i], &msg, sizeof(msg), 0);
+
+			}
+
+			else if(msg.type == c_QUIT)
+			{
+				std::cout << "teste"<< client_sockets[i] <<std::endl;
+
+				// std::cout << "bBEFORE" <<std::endl;
+				// for (auto x : client_sockets)
+				// 	std::cout << x <<std::endl;
+
+				std::vector<int>::iterator it;
+				for(it = client_sockets.begin(); it != client_sockets.end(); ++it)
+					if(*it == client_sockets[i])
+						break;
+
+				int client_sckt = *it;
+
+				client_sockets.erase(it);
+
+
+				gen_ACK(msg, c_QUIT, " ");
+				send(client_sckt, &msg, sizeof(msg), 0);
+
+				// std::cout << "AFTER" <<std::endl;
+				// for (auto x : client_sockets)
+				// 	std::cout << x <<std::endl;
+
+			}
 
 		} 
 
@@ -261,3 +398,4 @@ void print_sess_users()
 }
 
 //CLOSE SOCKET PROPERLY
+//FIX HASHTABLE

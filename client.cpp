@@ -2,6 +2,8 @@
 
 void sending_func(int sckt, std::string client_ID);
 
+volatile int exited = 0;
+
 int main(int argc, char** argv)
 {
 
@@ -90,7 +92,7 @@ int main(int argc, char** argv)
 
 	std::thread sender(&sending_func, sckt,client_ID);
 
-	while(1)
+	while(exited == 0)
 	{
 		// struct message new_msg;
 
@@ -102,6 +104,7 @@ int main(int argc, char** argv)
 			//MESSAGING
 			case c_MESSAGE:
 				std::cout << msg.data << std::endl;
+				break;
 
 			// Join session ACKS
 			case c_JN_ACK:
@@ -118,16 +121,28 @@ int main(int argc, char** argv)
 			case c_NS_NACK:
 				std::cout << "Failed to Create" <<std::endl << "Session: " << msg.data << std::endl;
 				break;
+			case c_QUERY:
+				std::cout << msg.data << std::endl;
+				break;
+			case c_QUACK:
+				std::cout << "End of List" <<std::endl;
+				break;
+			case c_QUIT:
+				std::cout << "EXIT" << std::endl;
+				exited = 1; // lock?
+				break;
 
 		}
 	}
+
+	sender.join();
 
 	close(sckt);
 }
 
 void sending_func(int sckt, std::string client_ID)
 {
-	while(1)
+	while(exited == 0)
 	{
 		std::string command, input;
 		struct message msg;
@@ -136,7 +151,7 @@ void sending_func(int sckt, std::string client_ID)
 
 		ss >> command;
 
-		std::cout << std::endl;
+
 
 		if(command == "/createsession")
 		{
@@ -145,6 +160,8 @@ void sending_func(int sckt, std::string client_ID)
 		
 			create_msg(msg, c_NEW_SESS, sess_ID.length() + 1, client_ID, sess_ID);
 			send(sckt, &msg, sizeof(msg), 0);
+
+			std::cout << std::endl;
 		}
 		else if(command == "/joinsession")
 		{
@@ -153,12 +170,36 @@ void sending_func(int sckt, std::string client_ID)
 
 			create_msg(msg, c_JOIN, sess_ID.length() + 1, client_ID, sess_ID);
 			send(sckt, &msg, sizeof(msg), 0);
+
+			std::cout << std::endl;
+		}
+		else if(command == "/leavesession")
+		{
+
+			create_msg(msg, c_LEAVE_SESS, 0 , client_ID , " ");
+			send(sckt, &msg, sizeof(msg), 0);
+			std::cout << std::endl;
+		}
+		else if(command == "/list")
+		{
+			create_msg(msg, c_QUERY, 0 , client_ID , " ");
+			send(sckt, &msg, sizeof(msg), 0);
+			std::cout << std::endl;			
+		}
+		else if(command == "/quit")
+		{
+			create_msg(msg, c_LEAVE_SESS, 0 , client_ID , " ");
+			send(sckt, &msg, sizeof(msg), 0);
+
+			create_msg(msg, c_QUIT, 0, client_ID, "");
+			send(sckt, &msg, sizeof(msg), 0);
+			
 		}
 		else
 		{
-			std::string message;
-			ss >> message;
-			create_msg(msg, c_MESSAGE, message.length() + 1, client_ID, message);
+			// std::string message;
+			// ss >> message;
+			create_msg(msg, c_MESSAGE, command.length() + 1, client_ID, command);
 			send(sckt, &msg, sizeof(msg), 0);
 		}
 	}
