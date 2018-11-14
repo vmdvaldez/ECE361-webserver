@@ -18,6 +18,7 @@
 #include <vector>
 #include <unordered_map>
 #include <utility>
+#include <thread>
 
 
 
@@ -46,6 +47,7 @@ enum control{
 	c_LEAVE_SESS,
 	c_NEW_SESS,
 	c_NS_ACK,
+	c_NS_NACK,
 	c_MESSAGE,
 	c_QUERY,
 	c_QU_ACK

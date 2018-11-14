@@ -1,13 +1,19 @@
 #include "common.h"
 
+//Hashing
 unsigned long djb2_hash(char* sess_name);
 struct hash_elem * hash_lookup(unsigned long h_index , std::string session_ID);
 void hash_insert(unsigned long h_index, std::string user, int socket, std::string session_ID);
+
+//Debugging
 void print_sess_users();
 
+// hashtable; collection of users and their socket associated with the hashed session ID.
 std::unordered_map<unsigned long, struct hash_elem> hash_sesh;
+
 // Sockets of online users; (change to struct user_socket)?? + session they're in
 std::vector <int> client_sockets;
+
 //Create Array of Users based on registration list (from file).
 std::vector <struct name_psswd> name_pass;
 
@@ -34,7 +40,6 @@ int main(int argc, char** argv)
 		read_fds = master_fds;
 		select(max_sd + 1, &read_fds, NULL, NULL, NULL);
 
-		// printf("estsesetse\n");
 
 		if(FD_ISSET(main_sckt, &read_fds))
 		{
@@ -108,8 +113,9 @@ int main(int argc, char** argv)
 				if(h_elem != NULL)
 				{
 					std::cout << "hit" << std::endl;
-					//optional
-					//SEND NACK
+
+					gen_ACK(msg, c_NS_NACK, session_ID);
+					send(client_sockets[i], &msg, sizeof(msg), 0);
 				}
 				else
 				{
@@ -134,19 +140,34 @@ int main(int argc, char** argv)
 
 				if(h_elem == NULL)
 				{
-					std::string temp = session_ID + "\nReason: Session Does Not Exist.";
-					gen_ACK(msg, c_JN_NACK, temp);
+					std::string nack = session_ID + "\nReason: Session Does Not Exist.";
+					gen_ACK(msg, c_JN_NACK, nack);
 					send(client_sockets[i], &msg, sizeof(msg), 0);
 				}
 				else
 				{
+					bool not_found = true;
 
-					struct user_socket temp = {source, client_sockets[i]};
+					for (auto x : h_elem->u_s)
+						if(x.socket == client_sockets[i])
+						{
+							std::string nack = session_ID + "\nReason: Already A Part of The Session";
+							gen_ACK(msg, c_JN_NACK, nack);
+							send(client_sockets[i], &msg, sizeof(msg), 0);
+							not_found = false;
+							break;
+						}
 
-					h_elem->u_s.push_back(temp);
+					if(not_found)
+					{
+						struct user_socket temp = {source, client_sockets[i]};
 
-					gen_ACK(msg, c_JN_ACK, session_ID);
-					send(client_sockets[i], &msg, sizeof(msg), 0);
+						h_elem->u_s.push_back(temp);
+
+						gen_ACK(msg, c_JN_ACK, session_ID);
+						send(client_sockets[i], &msg, sizeof(msg), 0);
+					}
+
 				}
 			}
 
@@ -171,6 +192,9 @@ int main(int argc, char** argv)
 	close(main_sckt);
 
 }
+
+
+
 
 unsigned long djb2_hash(char* sess_name){
 	unsigned long hash = 5381;
@@ -217,7 +241,6 @@ void hash_insert(unsigned long h_index, std::string user, int socket, std::strin
 	h_e.deleted = false;
 
 	hash_sesh[h_index] = h_e;
-
 
 }
 

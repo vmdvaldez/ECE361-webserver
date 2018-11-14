@@ -1,5 +1,6 @@
 #include "common.h"
 
+void sending_func(int sckt, std::string client_ID);
 
 int main(int argc, char** argv)
 {
@@ -73,35 +74,71 @@ int main(int argc, char** argv)
 	}
 
 
-	struct timeval tv;
-	tv.tv_sec = 0;
-	tv.tv_usec = 1000;
-	setsockopt(sckt, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+	// struct timeval tv;
+	// tv.tv_sec = 0;
+	// tv.tv_usec = 1000;
+	// setsockopt(sckt, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+
+
+	std::thread sender(&sending_func, sckt,client_ID);
 
 	while(1)
 	{
-		struct message new_msg;
-		std::getline(std::cin, input);
-		std::stringstream ss(input);
+		// struct message new_msg;
 
 		recv(sckt, &msg, sizeof(msg), 0);
 
+		switch(msg.type)
+		{
+
+			//MESSAGING
+			case c_MESSAGE:
+				std::cout << msg.data << std::endl;
+
+			// Join session ACKS
+			case c_JN_ACK:
+				std::cout << "Successfully Joined!" << std::endl << "Session: " << msg.data << std::endl;
+				break;
+			case c_JN_NACK:
+				std::cout << "Failed to Join" <<std::endl << "Session: " << msg.data << std::endl;
+				break;
+
+			// New Session ACKS
+			case c_NS_ACK:
+				std::cout << "Successfully Created!" << std::endl << "Session: " << msg.data << std::endl;
+				break;
+			case c_NS_NACK:
+				std::cout << "Failed to Create" <<std::endl << "Session: " << msg.data << std::endl;
+				break;
+
+
+		}
+
+	}
+
+	close(sckt);
+}
+
+void sending_func(int sckt, std::string client_ID)
+{
+	while(1)
+	{
+		std::string command, input;
+		struct message msg;
+		std::getline(std::cin, input);
+		std::stringstream ss(input);
+
 		ss >> command;
+
+		std::cout << std::endl;
 
 		if(command == "/createsession")
 		{
-
 			std::string sess_ID;
 			ss >> sess_ID;
-	
-			create_msg(msg, c_NEW_SESS, sess_ID.length() + 1,client_ID, sess_ID);
+		
+			create_msg(msg, c_NEW_SESS, sess_ID.length() + 1, client_ID, sess_ID);
 			send(sckt, &msg, sizeof(msg), 0);
-			recv(sckt, &msg, sizeof(msg), 0);
-
-			if(msg.type == c_NS_ACK)
-				std::cout << "Successfully Created " << msg.data << std::endl;
-			else
-				std::cout << "Failed to Create " << msg.data << std::endl;				
 		}
 		else if(command == "/joinsession")
 		{
@@ -110,34 +147,15 @@ int main(int argc, char** argv)
 
 			create_msg(msg, c_JOIN, sess_ID.length() + 1, client_ID, sess_ID);
 			send(sckt, &msg, sizeof(msg), 0);
-			recv(sckt, &msg, sizeof(msg), 0);
-
-			if(msg.type == c_JN_ACK)
-				std::cout << "Successfully Joined " << msg.data << std::endl;
-			else
-				std::cout << "Failed to Join " << msg.data << std::endl;	
-	
-		}
-		else if(msg.type == c_MESSAGE)
-		{
-			std::cout << msg.data;
 		}
 		else
 		{
 			std::string message;
 			ss >> message;
-
 			create_msg(msg, c_MESSAGE, message.length() + 1, client_ID, message);
 			send(sckt, &msg, sizeof(msg), 0);
 		}
-		// std::cout << "TEST";
-		// std::cout << command << std::endl;
-		// command = " ";
 	}
-
-
-	close(sckt);
 }
 
-// BUGGY connection establish function??
-//MAKE USER PRINT OUT SESSION ID
+//TODO: MAKE CONDITIONS FOR THREAD EXITING
