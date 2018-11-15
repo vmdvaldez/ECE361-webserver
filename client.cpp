@@ -103,7 +103,7 @@ int main(int argc, char** argv)
 
 			//MESSAGING
 			case c_MESSAGE:
-				std::cout << msg.data << std::endl;
+				std::cout << "<" << msg.source << "> " << msg.data << std::endl;
 				break;
 
 			// Join session ACKS
@@ -124,7 +124,7 @@ int main(int argc, char** argv)
 
 			//Query
 			case c_QUERY:
-				std::cout << msg.data << std::endl;
+				std::cout <<msg.data << std::endl;
 				break;
 			case c_QUACK:
 				std::cout << "End of List" <<std::endl;
@@ -153,6 +153,7 @@ void sending_func(int sckt, std::string client_ID)
 		std::string command, input;
 		struct message msg;
 		std::getline(std::cin, input);
+		std::cout << std::endl;
 		std::stringstream ss(input);
 
 		ss >> command;
@@ -194,8 +195,8 @@ void sending_func(int sckt, std::string client_ID)
 		}
 		else if(command == "/quit")
 		{
-			create_msg(msg, c_LEAVE_SESS, 0 , client_ID , " ");
-			send(sckt, &msg, sizeof(msg), 0);
+			// create_msg(msg, c_LEAVE_SESS, 0 , client_ID , " ");
+			// send(sckt, &msg, sizeof(msg), 0);
 
 			create_msg(msg, c_QUIT, 0, client_ID, "");
 			send(sckt, &msg, sizeof(msg), 0);
@@ -205,7 +206,7 @@ void sending_func(int sckt, std::string client_ID)
 		}
 		else
 		{
-			create_msg(msg, c_MESSAGE, command.length() + 1, client_ID, command);
+			create_msg(msg, c_MESSAGE, input.length() + 1, client_ID, input);
 			send(sckt, &msg, sizeof(msg), 0);
 		}
 	}

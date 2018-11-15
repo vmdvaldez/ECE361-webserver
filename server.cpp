@@ -380,6 +380,41 @@ void f_query(struct message msg, int socket)
 
 void f_quit(struct message msg, int socket)
 {
+	std::string source((char*)msg.source);
+
+	int client_sckt;
+	std::vector<std::string> session_ID;
+
+
+	for(auto x : hash_sesh)
+		for(auto y : x.second.u_s)
+			if(y.user == source){
+				client_sckt = y.socket;
+				session_ID.push_back(x.second.session_ID);
+			}
+			
+	for(int i = 0; i < session_ID.size(); ++i){		
+		unsigned long found_index = hash_lookup(session_ID[i]);
+
+
+		struct hash_elem * h_elem = &hash_sesh[found_index];
+
+		std::vector<user_socket>::iterator it;
+		for(it = h_elem->u_s.begin(); it != h_elem->u_s.end(); ++it)
+			if(it->socket == client_sckt)
+				break;
+
+		h_elem->u_s.erase(it);
+
+		
+		if(h_elem->u_s.size() == 0)
+		{
+			hash_sesh.erase(found_index);
+			rev_hash_sesh.erase(session_ID[i]);
+		}
+
+	}
+
 	std::vector<struct user_socket>::iterator it;
 	for(it = client_sockets.begin(); it != client_sockets.end(); ++it)
 		if(it->socket == socket)
@@ -389,6 +424,8 @@ void f_quit(struct message msg, int socket)
 
 	gen_ACK(msg, c_QUIT, " ");
 	send(socket, &msg, sizeof(msg), 0);
+
+
 
 }
 
