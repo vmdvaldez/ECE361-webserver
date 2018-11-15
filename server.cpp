@@ -23,7 +23,7 @@ std::unordered_map<unsigned long, struct hash_elem> hash_sesh;
 std::unordered_map<std::string, unsigned long> rev_hash_sesh;
 
 // Sockets of online users; (change to struct user_socket)?? + session they're in
-std::vector <int> client_sockets;
+std::vector <struct user_socket> client_sockets;
 
 //Create Array of Users based on registration list (from file).
 std::vector <struct name_psswd> name_pass;
@@ -63,7 +63,8 @@ int main(int argc, char** argv)
 				perror("Accept Error");
 			assert(ret >= 0);
 
-			client_sockets.push_back(ret);
+
+			client_sockets.emplace_back(user_socket{" ", ret});
 			FD_SET(ret, &master_fds);
 			if(max_sd < ret)
 				max_sd = ret;
@@ -72,28 +73,27 @@ int main(int argc, char** argv)
 		for(int i = 0; i < client_sockets.size(); ++i)
 		{
 
-			if(!FD_ISSET(client_sockets[i], &read_fds))
+			if(!FD_ISSET(client_sockets[i].socket, &read_fds))
 				continue;
 
 			struct message msg;
-			recv(client_sockets[i], &msg, sizeof(msg), 0);
+			recv(client_sockets[i].socket, &msg, sizeof(msg), 0);
 
-			std::cout << c_NEW_SESS << msg.type << std::endl; 
 
 			if(msg.type == c_LOGIN)
-				f_login(msg ,msg.signup, client_sockets[i]);			
+				f_login(msg ,msg.signup, client_sockets[i].socket);			
 			else if(msg.type == c_NEW_SESS)
-				f_newsess(msg, client_sockets[i]);
+				f_newsess(msg, client_sockets[i].socket);
 			else if(msg.type == c_JOIN)
-				f_joinsess(msg, client_sockets[i]);
+				f_joinsess(msg, client_sockets[i].socket);
 			else if(msg.type == c_LEAVE_SESS)
-				f_leavesess(msg, client_sockets[i]);
+				f_leavesess(msg, client_sockets[i].socket);
 			else if(msg.type == c_MESSAGE)
-				f_message(msg, client_sockets[i]);
+				f_message(msg, client_sockets[i].socket);
 			else if(msg.type == c_QUERY)
-				f_query(msg, client_sockets[i]);
+				f_query(msg, client_sockets[i].socket);
 			else if(msg.type == c_QUIT)
-				f_quit(msg, client_sockets[i]);
+				f_quit(msg, client_sockets[i].socket);
 		} 
 	}
 
@@ -177,11 +177,28 @@ void f_login(struct message msg, bool signup, int socket)
 	}
 
 	if(!pass_exists)
+	{
 		gen_ACK(msg, c_LO_NACK, "Wrong Password");
-	else
-		gen_ACK(msg, c_LO_ACK, "Login Successful");
+		send(socket, &msg, sizeof(msg), 0);
+		return;
+	}
+
+	std::string user((char *)msg.source);
+
+	for(auto x : client_sockets)
+		if(x.user == user)
+		{
+			gen_ACK(msg, c_LO_NACK, "User is Already Online");
+			send(socket, &msg, sizeof(msg), 0);
+			return;
+		}	
 
 
+	for(auto &x : client_sockets)
+		if(x.socket == socket)
+			x.user = user;
+
+	gen_ACK(msg, c_LO_ACK, "Login Successful");
 	send(socket, &msg, sizeof(msg), 0);
 }
 
@@ -254,7 +271,7 @@ void f_leavesess(struct message msg, int socket)
 
 	std::string source((char*)msg.source);
 
-	int client_sckt;
+	// int client_sckt;
 	std::string session_ID;
 	struct user_socket u_s;
 	std::unordered_map<unsigned long, struct hash_elem> hashptr;
@@ -263,7 +280,6 @@ void f_leavesess(struct message msg, int socket)
 	for(auto x : hash_sesh)
 		for(auto y : x.second.u_s)
 			if(y.user == source){
-				client_sckt = y.socket;
 				session_ID = x.second.session_ID;
 				u_s = y;
 			}
@@ -280,9 +296,9 @@ void f_leavesess(struct message msg, int socket)
 
 	struct hash_elem * h_elem = &hash_sesh[found_index];
 
-	std::vector<user_socket>::iterator it;
+	std::vector<struct user_socket>::iterator it;
 	for(it = h_elem->u_s.begin(); it != h_elem->u_s.end(); ++it)
-		if(it->socket == client_sckt)
+		if(it->socket == socket)
 			break;
 
 	h_elem->u_s.erase(it);
@@ -364,9 +380,9 @@ void f_query(struct message msg, int socket)
 
 void f_quit(struct message msg, int socket)
 {
-	std::vector<int>::iterator it;
+	std::vector<struct user_socket>::iterator it;
 	for(it = client_sockets.begin(); it != client_sockets.end(); ++it)
-		if(*it == socket)
+		if(it->socket == socket)
 			break;
 
 	client_sockets.erase(it);
