@@ -155,31 +155,32 @@ void f_login(struct message msg, bool signup, int socket)
 		if(user_exists(name_pass, NULL, msg))
 		{
 			gen_ACK(msg, c_LO_NACK, "User Already Exists");
+			send(socket, &msg, sizeof(msg), 0);
 			return;
 		}
 
-			add_user((char*)msg.source, (char*)msg.data);
-			struct name_psswd n_p{(char*)msg.source, (char*)msg.data};
-			name_pass.push_back(n_p);
-			gen_ACK(msg, c_LO_ACK, "Signup Successful");
-		
-	}
+		add_user((char*)msg.source, (char*)msg.data);
+		struct name_psswd n_p{(char*)msg.source, (char*)msg.data};
+		name_pass.push_back(n_p);
+		gen_ACK(msg, c_LO_ACK, "Signup Successful");
+		send(socket, &msg, sizeof(msg), 0);
 	
-	else
-	{
-		bool pass_exists = false;
-		if(!user_exists(name_pass, &pass_exists, msg))
-		{
-			gen_ACK(msg, c_LO_NACK, "Need To Sign UP");
-			return;
-		}
-
-		if(!pass_exists)
-			gen_ACK(msg, c_LO_NACK, "Wrong Password");
-		else
-			gen_ACK(msg, c_LO_ACK, "Login Successful");
-
+		return;	
 	}
+
+	bool pass_exists = false;
+	if(!user_exists(name_pass, &pass_exists, msg))
+	{
+		gen_ACK(msg, c_LO_NACK, "Need To Sign UP");
+		send(socket, &msg, sizeof(msg), 0);
+		return;
+	}
+
+	if(!pass_exists)
+		gen_ACK(msg, c_LO_NACK, "Wrong Password");
+	else
+		gen_ACK(msg, c_LO_ACK, "Login Successful");
+
 
 	send(socket, &msg, sizeof(msg), 0);
 }
