@@ -121,15 +121,21 @@ int main(int argc, char** argv)
 			case c_NS_NACK:
 				std::cout << "Failed to Create" <<std::endl << "Session: " << msg.data << std::endl;
 				break;
+
+			//Query
 			case c_QUERY:
 				std::cout << msg.data << std::endl;
 				break;
 			case c_QUACK:
 				std::cout << "End of List" <<std::endl;
 				break;
+
+			//QUIT
 			case c_QUIT:
 				std::cout << "EXIT" << std::endl;
 				exited = 1; // lock?
+				break;
+			default:
 				break;
 
 		}
@@ -199,8 +205,6 @@ void sending_func(int sckt, std::string client_ID)
 		}
 		else
 		{
-			// std::string message;
-			// ss >> message;
 			create_msg(msg, c_MESSAGE, command.length() + 1, client_ID, command);
 			send(sckt, &msg, sizeof(msg), 0);
 		}
