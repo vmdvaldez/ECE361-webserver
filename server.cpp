@@ -51,6 +51,8 @@ int main(int argc, char** argv)
 		read_fds = master_fds;
 		select(max_sd + 1, &read_fds, NULL, NULL, NULL);
 
+
+
 		if(FD_ISSET(main_sckt, &read_fds))
 		{
 			int ret;
@@ -75,6 +77,8 @@ int main(int argc, char** argv)
 
 			struct message msg;
 			recv(client_sockets[i], &msg, sizeof(msg), 0);
+
+			std::cout << c_NEW_SESS << msg.type << std::endl; 
 
 			if(msg.type == c_LOGIN)
 				f_login(msg ,msg.signup, client_sockets[i]);			
@@ -149,29 +153,32 @@ void f_login(struct message msg, bool signup, int socket)
 	if(msg.signup)
 	{
 		if(user_exists(name_pass, NULL, msg))
+		{
 			gen_ACK(msg, c_LO_NACK, "User Already Exists");
-		else
-			{
+			return;
+		}
+
 			add_user((char*)msg.source, (char*)msg.data);
 			struct name_psswd n_p{(char*)msg.source, (char*)msg.data};
 			name_pass.push_back(n_p);
 			gen_ACK(msg, c_LO_ACK, "Signup Successful");
-			}
+		
 	}
 	
 	else
 	{
 		bool pass_exists = false;
 		if(!user_exists(name_pass, &pass_exists, msg))
-			gen_ACK(msg, c_LO_NACK, "Need To Sign UP");
-		else
 		{
-			if(!pass_exists)
-				gen_ACK(msg, c_LO_NACK, "Wrong Password");
-			else
-				gen_ACK(msg, c_LO_ACK, "Login Successful");
-
+			gen_ACK(msg, c_LO_NACK, "Need To Sign UP");
+			return;
 		}
+
+		if(!pass_exists)
+			gen_ACK(msg, c_LO_NACK, "Wrong Password");
+		else
+			gen_ACK(msg, c_LO_ACK, "Login Successful");
+
 	}
 
 	send(socket, &msg, sizeof(msg), 0);
@@ -187,16 +194,16 @@ void f_newsess(struct message msg, int socket)
 	{
 		gen_ACK(msg, c_NS_NACK, session_ID);
 		send(socket, &msg, sizeof(msg), 0);
+		return;
 	}
-	else
-	{
-		unsigned long h_index = djb2_hash((char *)session_ID.c_str());	
-		hash_insert(h_index, source , socket, session_ID);
+	
+	unsigned long h_index = djb2_hash((char *)session_ID.c_str());	
+	hash_insert(h_index, source , socket, session_ID);
 
-		gen_ACK(msg, c_NS_ACK, session_ID);
-		send(socket, &msg, sizeof(msg), 0);
+	gen_ACK(msg, c_NS_ACK, session_ID);
+	send(socket, &msg, sizeof(msg), 0);
 
-	}
+	
 }
 
 void f_joinsess(struct message msg, int socket)
@@ -211,34 +218,34 @@ void f_joinsess(struct message msg, int socket)
 		std::string nack = session_ID + "\nReason: Session Does Not Exist.";
 		gen_ACK(msg, c_JN_NACK, nack);
 		send(socket, &msg, sizeof(msg), 0);
+		return;
 	}
-	else
-	{
-		bool not_found = true;
 
-		struct hash_elem * h_elem = &hash_sesh[found_index];
+	bool not_found = true;
 
-		for (auto x : h_elem->u_s)
-			if(x.socket == socket)
-			{
-				std::string nack = session_ID + "\nReason: Already A Part of The Session";
-				gen_ACK(msg, c_JN_NACK, nack);
-				send(socket, &msg, sizeof(msg), 0);
-				not_found = false;
-				break;
-			}
+	struct hash_elem * h_elem = &hash_sesh[found_index];
 
-		if(not_found)
+	for (auto x : h_elem->u_s)
+		if(x.socket == socket)
 		{
-			struct user_socket temp = {source, socket};
-
-			h_elem->u_s.push_back(temp);
-
-			gen_ACK(msg, c_JN_ACK, session_ID);
+			std::string nack = session_ID + "\nReason: Already A Part of The Session";
+			gen_ACK(msg, c_JN_NACK, nack);
 			send(socket, &msg, sizeof(msg), 0);
+			not_found = false;
+			break;
 		}
 
+	if(not_found)
+	{
+		struct user_socket temp = {source, socket};
+
+		h_elem->u_s.push_back(temp);
+
+		gen_ACK(msg, c_JN_ACK, session_ID);
+		send(socket, &msg, sizeof(msg), 0);
 	}
+
+	
 }
 
 void f_leavesess(struct message msg, int socket)
@@ -266,26 +273,27 @@ void f_leavesess(struct message msg, int socket)
 	{
 		//SEND ERROR
 
+		return;
+
 	}
-	else
+
+	struct hash_elem * h_elem = &hash_sesh[found_index];
+
+	std::vector<user_socket>::iterator it;
+	for(it = h_elem->u_s.begin(); it != h_elem->u_s.end(); ++it)
+		if(it->socket == client_sckt)
+			break;
+
+	h_elem->u_s.erase(it);
+
+	
+	if(h_elem->u_s.size() == 0)
 	{
-		struct hash_elem * h_elem = &hash_sesh[found_index];
-
-		std::vector<user_socket>::iterator it;
-		for(it = h_elem->u_s.begin(); it != h_elem->u_s.end(); ++it)
-			if(it->socket == client_sckt)
-				break;
-
-		h_elem->u_s.erase(it);
-
-		
-		if(h_elem->u_s.size() == 0)
-		{
-			hash_sesh.erase(found_index);
-			rev_hash_sesh.erase(session_ID);
-		}
-
+		hash_sesh.erase(found_index);
+		rev_hash_sesh.erase(session_ID);
 	}
+
+
 }
 
 void f_message(struct message msg, int socket)
@@ -293,9 +301,6 @@ void f_message(struct message msg, int socket)
 
 	std::string source((char*)msg.source);
 	std::string data((char*) msg.data);
-	// std::vector<user_socket> u_s;
-	
-	// int client_sckt;
 	std::string session_ID;
 
 	for(auto x : hash_sesh)
@@ -305,6 +310,9 @@ void f_message(struct message msg, int socket)
 
 
 	unsigned long found_index = hash_lookup(session_ID);
+
+	if(found_index == 0)
+		return;
 
 	struct hash_elem * h_elem = &hash_sesh[found_index];
 
