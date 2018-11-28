@@ -1,8 +1,12 @@
 #include "common.h"
 
-void sending_func(int sckt, std::string client_ID);
+void sending_func(int sckt);
+void login(struct message msg, std::string psswd, int sckt, int type);
 
 volatile int exited = 0;
+volatile int logged_out = 0;
+std::string client_ID;
+
 
 int main(int argc, char** argv)
 {
@@ -20,7 +24,7 @@ int main(int argc, char** argv)
 	if(signup == 1)
 		msg.signup = true;
 
-	std::string command, client_ID, psswd, server_IP, server_port;
+	std::string command, psswd, server_IP, server_port;
 
 	// makes sure client logs in first
 	do 
@@ -37,6 +41,7 @@ int main(int argc, char** argv)
 	}while(command != "/login");
 
 
+
 	//Connection establishment
 	struct addrinfo hints, *res;
 	addrinfo_init(name_to_IP(server_IP.c_str()), server_port.c_str(), &hints, &res);
@@ -44,53 +49,16 @@ int main(int argc, char** argv)
 	
 
 	// Creates login message
-
-	while(1)
-	{
-		create_msg(msg, c_LOGIN, psswd.length(), client_ID, psswd);
-
-		send(sckt, &msg, sizeof(msg), 0);
-		recv(sckt, &msg, sizeof(msg), 0);
-
-		if(msg.type == c_LO_ACK){
-			std::cout << msg.data << std::endl;
-			break;
-		}
-		else if(msg.type == c_LO_NACK)
-		{
-			std::cout << std::endl << msg.data << std::endl;
-			std::cout << "1: SIGNUP" <<std::endl << "2: LOGIN" << std::endl;
-
-			std::getline(std::cin, input);
-			std::stringstream ss1(input);
-			ss1 >> signup;
-
-			msg.signup = signup == 1 ? true : false;
-
-			std::string check;
-			do 
-			{
-				std::getline(std::cin, input);
-				std::stringstream ss(input);
-
-				ss >> check >> client_ID >> psswd >> server_IP >> server_port;
-
-				if(check != "/login")
-				 	std::cout << "Login first" << std::endl;
-
-						
-			}while(check != "/login");
-		}
-	}
+	login(msg, psswd, sckt, 0);
 
 
 	// struct timeval tv;
-	// tv.tv_sec = 0;
-	// tv.tv_usec = 1000;
+	// tv.tv_sec = 1;
+	// tv.tv_usec = 0;
 	// setsockopt(sckt, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 
 
-	std::thread sender(&sending_func, sckt,client_ID);
+	std::thread sender(&sending_func, sckt);
 
 	while(exited == 0)
 	{
@@ -130,10 +98,27 @@ int main(int argc, char** argv)
 				std::cout << "End of List" <<std::endl;
 				break;
 
+
+			//Logout
+			case c_LOGOUT_ACK:
+				std::cout << "Successfully Logged Out" << std::endl;
+				login(msg, psswd, sckt, 1);
+				logged_out = 1;
+				break;
+
+
+			//pm
+			case c_PM_ACK:
+				std::cout << "Private: "<< "<" << msg.source << "> " << msg.data << std::endl;
+				break;
+			case c_PM_NACK:
+				std::cout << "User Is Not Online" << std::endl;
+				break;
+
 			//QUIT
 			case c_QUIT:
 				std::cout << "EXIT" << std::endl;
-				exited = 1; // lock?
+				exited = 1; 
 				break;
 			default:
 				break;
@@ -146,7 +131,7 @@ int main(int argc, char** argv)
 	close(sckt);
 }
 
-void sending_func(int sckt, std::string client_ID)
+void sending_func(int sckt)
 {
 	while(exited == 0)
 	{
@@ -165,7 +150,7 @@ void sending_func(int sckt, std::string client_ID)
 			std::string sess_ID;
 			ss >> sess_ID;
 		
-			create_msg(msg, c_NEW_SESS, sess_ID.length() + 1, client_ID, sess_ID);
+			create_msg(msg, c_NEW_SESS, sess_ID.length() + 1, client_ID, "", sess_ID);
 			send(sckt, &msg, sizeof(msg), 0);
 
 			std::cout << std::endl;
@@ -175,7 +160,7 @@ void sending_func(int sckt, std::string client_ID)
 			std::string sess_ID;
 			ss >> sess_ID;
 
-			create_msg(msg, c_JOIN, sess_ID.length() + 1, client_ID, sess_ID);
+			create_msg(msg, c_JOIN, sess_ID.length() + 1, client_ID, "", sess_ID);
 			send(sckt, &msg, sizeof(msg), 0);
 
 			std::cout << std::endl;
@@ -183,22 +168,40 @@ void sending_func(int sckt, std::string client_ID)
 		else if(command == "/leavesession")
 		{
 
-			create_msg(msg, c_LEAVE_SESS, 0 , client_ID , " ");
+			create_msg(msg, c_LEAVE_SESS, 0 , client_ID, "" , " ");
 			send(sckt, &msg, sizeof(msg), 0);
 			std::cout << std::endl;
 		}
 		else if(command == "/list")
 		{
-			create_msg(msg, c_QUERY, 0 , client_ID , " ");
+			create_msg(msg, c_QUERY, 0 , client_ID , "", " ");
 			send(sckt, &msg, sizeof(msg), 0);
 			std::cout << std::endl;			
 		}
+		else if(command == "/logout")
+		{
+			create_msg(msg, c_LOGOUT, 0 , client_ID, "" , " ");
+			send(sckt, &msg, sizeof(msg), 0);
+			std::cout << std::endl;
+
+			while(logged_out != 1);		
+		}
+		else if(command == "/pm")
+		{
+			std::string dest_ID;
+			ss >> dest_ID;
+			std::cout << "Message: " << std::endl;
+			std::getline(std::cin, input);
+
+			create_msg(msg, c_PM, input.length() + 1, client_ID, dest_ID, input);
+			send(sckt, &msg, sizeof(msg), 0);
+
+
+		}
 		else if(command == "/quit")
 		{
-			// create_msg(msg, c_LEAVE_SESS, 0 , client_ID , " ");
-			// send(sckt, &msg, sizeof(msg), 0);
 
-			create_msg(msg, c_QUIT, 0, client_ID, "");
+			create_msg(msg, c_QUIT, 0, client_ID, "", "");
 			send(sckt, &msg, sizeof(msg), 0);
 
 			while(exited != 1);
@@ -206,10 +209,74 @@ void sending_func(int sckt, std::string client_ID)
 		}
 		else
 		{
-			create_msg(msg, c_MESSAGE, input.length() + 1, client_ID, input);
+			create_msg(msg, c_MESSAGE, input.length() + 1, client_ID, "", input);
 			send(sckt, &msg, sizeof(msg), 0);
 		}
 	}
+
 }
 
-//TODO: MAKE CONDITIONS FOR THREAD EXITING
+
+void login(struct message msg, std::string psswd, int sckt, int type)
+{
+	std::string command, input, server_IP, server_port;
+	int signup;
+	bool quit = false;
+	if(type == 1)
+		goto login;
+
+	while(1)
+		{
+			create_msg(msg, c_LOGIN, psswd.length(), client_ID, "", psswd);
+
+			send(sckt, &msg, sizeof(msg), 0);
+			recv(sckt, &msg, sizeof(msg), 0);
+
+			if(msg.type == c_LO_ACK){
+				std::cout << msg.data << std::endl;
+				break;
+			}
+			else if(msg.type == c_LO_NACK)
+			{
+login:
+				std::cout << std::endl << msg.data << std::endl;
+				std::cout << "1: SIGNUP" <<std::endl << "2: LOGIN" << std::endl;
+
+				std::getline(std::cin, input);
+				std::stringstream ss1(input);
+				ss1 >> signup;
+
+				msg.signup = signup == 1 ? true : false;
+
+
+				std::string check;
+				do 
+				{
+					std::getline(std::cin, input);
+					std::stringstream ss(input);
+					ss >> check >> client_ID >> psswd >> server_IP >> server_port;
+
+
+					if(check == "/quit"){
+						create_msg(msg, c_QUIT, 0, client_ID, "", "");
+						send(sckt, &msg, sizeof(msg), 0);
+						recv(sckt, &msg, sizeof(msg), 0);
+						std::cout << "EXITED" << std::endl;
+						quit = true;
+						exited = 1;
+						break;
+					}
+					else if(check != "/login")
+					 std::cout << "Login first" << std::endl;
+
+							
+				}while(check != "/login");
+
+				if(quit)
+					break;
+			}
+		}
+}
+
+
+//when logging out cant log in with the same user

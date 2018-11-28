@@ -102,11 +102,12 @@ int connection_establishment(struct addrinfo &hints, struct addrinfo *&res, int 
 	return sckt;
 }
 
-void create_msg(struct message& msg, int type, int size, std::string source, std::string data)
+void create_msg(struct message& msg, int type, int size, std::string source, std::string dest, std::string data)
 {
 	msg.type = type;
 	msg.size = size;
 	memcpy(&msg.source, source.c_str(), source.length() + 1);
 	memcpy(&msg.data, data.c_str(), data.length() + 1);
+	memcpy(&msg.destination, dest.c_str(), dest.length() + 1);
 }
 

@@ -13,9 +13,11 @@ void f_leavesess(struct message msg, int socket);
 void f_message(struct message msg, int socket);
 void f_query(struct message msg, int socket);
 void f_quit(struct message msg, int socket);
-
+void f_logout(struct message msg, int socket);
+void f_pm(struct message msg, int socket);
 //Debugging
 void print_sess_users();
+void print_us();
 
 // hashtable; collection of users and their socket associated with the hashed session ID.
 std::unordered_map<unsigned long, struct hash_elem> hash_sesh;
@@ -32,6 +34,8 @@ std::vector <struct name_psswd> name_pass;
 int main(int argc, char** argv)
 {
 
+	std::chrono::duration<double> timeout(TIMEOUT);
+
 	get_users(name_pass);
 	
 	// Connection establishment
@@ -46,10 +50,16 @@ int main(int argc, char** argv)
 	FD_ZERO(&read_fds);
 	FD_SET(main_sckt, &master_fds);
 
+	struct timeval tv;
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	// setsockopt(sckt, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+
+
 	while(1)
 	{
 		read_fds = master_fds;
-		select(max_sd + 1, &read_fds, NULL, NULL, NULL);
+		select(max_sd + 1, &read_fds, NULL, NULL, &tv);
 
 
 
@@ -63,8 +73,9 @@ int main(int argc, char** argv)
 				perror("Accept Error");
 			assert(ret >= 0);
 
+			auto join_time = std::chrono::high_resolution_clock::now();
 
-			client_sockets.emplace_back(user_socket{" ", ret});
+			client_sockets.emplace_back(user_socket{" ", ret, join_time, join_time});
 			FD_SET(ret, &master_fds);
 			if(max_sd < ret)
 				max_sd = ret;
@@ -73,8 +84,20 @@ int main(int argc, char** argv)
 		for(int i = 0; i < client_sockets.size(); ++i)
 		{
 
-			if(!FD_ISSET(client_sockets[i].socket, &read_fds))
+			if(!FD_ISSET(client_sockets[i].socket, &read_fds)){
+				if(client_sockets[i].diff() >= timeout)
+				{
+					struct message quit;
+					create_msg(quit, c_QUIT, client_sockets[i].user.length() + 1, client_sockets[i].user, "", "");
+					f_quit(quit, client_sockets[i].socket);
+				}
+				else
+					client_sockets[i].timer = std::chrono::high_resolution_clock::now();
+
 				continue;
+			}
+
+			client_sockets[i].last_active = std::chrono::high_resolution_clock::now();
 
 			struct message msg;
 			recv(client_sockets[i].socket, &msg, sizeof(msg), 0);
@@ -92,8 +115,12 @@ int main(int argc, char** argv)
 				f_message(msg, client_sockets[i].socket);
 			else if(msg.type == c_QUERY)
 				f_query(msg, client_sockets[i].socket);
+			else if(msg.type == c_LOGOUT)
+				f_logout(msg, client_sockets[i].socket);
 			else if(msg.type == c_QUIT)
 				f_quit(msg, client_sockets[i].socket);
+			else if(msg.type == c_PM)
+				f_pm(msg, client_sockets[i].socket);
 		} 
 	}
 
@@ -138,6 +165,11 @@ void hash_insert(unsigned long h_index, std::string user, int socket, std::strin
 }
 
 
+void print_us()
+{
+	for(auto x : client_sockets)
+		std::cout << x.user << " " << x.socket << std::endl;
+}
 
 void print_sess_users()
 {
@@ -356,7 +388,7 @@ void f_query(struct message msg, int socket)
 			if(size + y.user.length() + 1 >= MAX_DATA)
 			{
 				list += "\0";
-				create_msg(msg, c_QUERY, list.length() + 1, source, list);
+				create_msg(msg, c_QUERY, list.length() + 1, source, "", list);
 				send(socket, &msg, sizeof(msg), 0);
 				size = 0;
 				list.clear();
@@ -367,7 +399,7 @@ void f_query(struct message msg, int socket)
 			list += y.user + "\n";
 
 		}
-		create_msg(msg, c_QUERY, list.length() + 1, source, list);
+		create_msg(msg, c_QUERY, list.length() + 1, source, "", list);
 		send(socket, &msg, sizeof(msg), 0);
 		size = 0;
 		list.clear();
@@ -425,8 +457,78 @@ void f_quit(struct message msg, int socket)
 	gen_ACK(msg, c_QUIT, " ");
 	send(socket, &msg, sizeof(msg), 0);
 
+}
 
+void f_logout(struct message msg, int socket)
+{
+	std::string source((char*)msg.source);
+
+	int client_sckt;
+	std::vector<std::string> session_ID;
+
+
+	for(auto x : hash_sesh)
+		for(auto y : x.second.u_s)
+			if(y.user == source){
+				client_sckt = y.socket;
+				session_ID.push_back(x.second.session_ID);
+			}
+			
+	for(int i = 0; i < session_ID.size(); ++i){		
+		unsigned long found_index = hash_lookup(session_ID[i]);
+
+
+		struct hash_elem * h_elem = &hash_sesh[found_index];
+
+		std::vector<user_socket>::iterator it;
+		for(it = h_elem->u_s.begin(); it != h_elem->u_s.end(); ++it)
+			if(it->socket == client_sckt)
+				break;
+
+		h_elem->u_s.erase(it);
+
+		
+		if(h_elem->u_s.size() == 0)
+		{
+			hash_sesh.erase(found_index);
+			rev_hash_sesh.erase(session_ID[i]);
+		}
+
+	}
+
+	std::vector<struct user_socket>::iterator it;
+	for(it = client_sockets.begin(); it != client_sockets.end(); ++it)
+		if(it->socket == socket)
+			break;
+
+	it->user = "21312321";
+	// client_sockets.erase(it);
+
+
+	gen_ACK(msg, c_LOGOUT_ACK, " ");
+	send(socket, &msg, sizeof(msg), 0);
 
 }
 
+void f_pm(struct message msg, int socket)
+{
+	std::string source((char*)msg.source);
+	std::string data((char*) msg.data);
+	std::string dest((char *)msg.destination);
+	bool found = false;
+
+	for(auto x : client_sockets)
+		if(x.user == dest){
+			found = true;
+			msg.type = c_PM_ACK;
+			send(x.socket, &msg, sizeof(msg), 0);
+			break;
+		}
+
+	if(!found){
+		gen_ACK(msg, c_PM_NACK, "");
+		send(socket, &msg, sizeof(msg), 0);
+	}
+		
+}
 //CLOSE SOCKET PROPERLY

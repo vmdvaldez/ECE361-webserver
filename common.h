@@ -20,18 +20,23 @@
 #include <utility>
 #include <thread>
 #include <algorithm>
-
+#include <chrono>
+#include <ratio>
 
 
 #define MAX_NAME 50
 #define MAX_DATA 1000
 #define BACKLOG 20
+#define TIMEOUT 10000
+
+#define time std::chrono::high_resolution_clock::time_point 
 
 
 struct message {
 	unsigned int type;
 	unsigned int size;
 	unsigned char source[MAX_NAME];
+	unsigned char destination[MAX_NAME];
 	unsigned char data[MAX_DATA];
 
 	bool signup = false;
@@ -53,7 +58,12 @@ enum control{
 	c_QUERY,
 	c_QUACK,
 	c_QUIT,
-	c_QUIT_ACK
+	c_QUIT_ACK,
+	c_LOGOUT,
+	c_LOGOUT_ACK,
+	c_PM,
+	c_PM_ACK,
+	c_PM_NACK
 };
 
 struct name_psswd{
@@ -64,6 +74,15 @@ struct name_psswd{
 struct user_socket{
 	std::string user;
 	int socket;
+
+	time last_active;
+	time  timer;
+
+	std::chrono::duration<double> diff()
+	{
+		std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(timer - last_active);
+		return time_span;
+	}
 };
 
 struct hash_elem
@@ -85,5 +104,5 @@ void add_user(std::string name, std::string password);
 
 //Create Message
 void gen_ACK(struct message &msg, int type, std::string data);
-void create_msg(struct message& msg, int type, int size, std::string source, std::string data);
+void create_msg(struct message& msg, int type, int size, std::string source, std::string dest, std::string data);
 
