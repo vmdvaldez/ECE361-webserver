@@ -129,8 +129,6 @@ int main(int argc, char** argv)
 }
 
 
-
-
 unsigned long djb2_hash(char* sess_name){
 	unsigned long hash = 5381;
 
@@ -182,6 +180,9 @@ void print_sess_users()
 
 void f_login(struct message msg, bool signup, int socket)
 {
+
+	std::string user((char *)msg.source);
+
 	if(msg.signup)
 	{
 		if(user_exists(name_pass, NULL, msg))
@@ -194,6 +195,11 @@ void f_login(struct message msg, bool signup, int socket)
 		add_user((char*)msg.source, (char*)msg.data);
 		struct name_psswd n_p{(char*)msg.source, (char*)msg.data};
 		name_pass.push_back(n_p);
+
+		for(auto &x : client_sockets)
+			if(x.socket == socket)
+				x.user = user;
+
 		gen_ACK(msg, c_LO_ACK, "Signup Successful");
 		send(socket, &msg, sizeof(msg), 0);
 	
@@ -215,7 +221,6 @@ void f_login(struct message msg, bool signup, int socket)
 		return;
 	}
 
-	std::string user((char *)msg.source);
 
 	for(auto x : client_sockets)
 		if(x.user == user)
@@ -444,10 +449,9 @@ void f_quit(struct message msg, int socket)
 
 	for(auto x : hash_sesh)
 		for(auto y : x.second.u_s)
-			if(y.user == source){
-				client_sckt = y.socket;
+			if(y.socket == socket)
 				session_ID.push_back(x.second.session_ID);
-			}
+			
 			
 	for(int i = 0; i < session_ID.size(); ++i){		
 		unsigned long found_index = hash_lookup(session_ID[i]);
@@ -493,10 +497,9 @@ void f_logout(struct message msg, int socket)
 
 	for(auto x : hash_sesh)
 		for(auto y : x.second.u_s)
-			if(y.user == source){
-				client_sckt = y.socket;
+			if(y.socket == socket)				
 				session_ID.push_back(x.second.session_ID);
-			}
+			
 			
 	for(int i = 0; i < session_ID.size(); ++i){		
 		unsigned long found_index = hash_lookup(session_ID[i]);

@@ -1,10 +1,10 @@
 #include "common.h"
 
 void sending_func(int sckt);
-void login(struct message msg, std::string psswd, int sckt, int type);
-
-volatile int exited = 0;
-volatile int logged_out = 0;
+void login(struct message msg, std::string psswd, int sckt);
+void login_2(struct message msg, std::string psswd, int sckt);
+int exited = 0;
+int logged_in = 0;
 std::string client_ID;
 
 
@@ -49,7 +49,7 @@ int main(int argc, char** argv)
 	
 
 	// Creates login message
-	login(msg, psswd, sckt, 0);
+	login(msg, psswd, sckt);
 
 
 	// struct timeval tv;
@@ -101,11 +101,12 @@ int main(int argc, char** argv)
 
 			//Logout
 			case c_LOGOUT_ACK:
+				{
 				std::cout << "Successfully Logged Out" << std::endl;
-				login(msg, psswd, sckt, 1);
-				logged_out = 1;
+				std::thread l_thread(&login_2, msg, psswd, sckt);
+				l_thread.detach();
 				break;
-
+				}
 
 			//pm
 			case c_PM_ACK:
@@ -120,6 +121,17 @@ int main(int argc, char** argv)
 				std::cout << "EXIT" << std::endl;
 				exited = 1; 
 				break;
+
+
+			//login
+			case c_LO_ACK:
+				std::cout << msg.data << std::endl;
+				logged_in = 1;
+				break;
+			case c_LO_NACK:
+				std::cout << std::endl << msg.data << std::endl;
+				break;
+
 			default:
 				break;
 
@@ -142,8 +154,6 @@ void sending_func(int sckt)
 		std::stringstream ss(input);
 
 		ss >> command;
-
-
 
 		if(command == "/createsession")
 		{
@@ -180,11 +190,12 @@ void sending_func(int sckt)
 		}
 		else if(command == "/logout")
 		{
+			logged_in = 0;
 			create_msg(msg, c_LOGOUT, 0 , client_ID, "" , " ");
 			send(sckt, &msg, sizeof(msg), 0);
 			std::cout << std::endl;
+			while(logged_in != 1 && exited != 1);
 
-			while(logged_out != 1);		
 		}
 		else if(command == "/pm")
 		{
@@ -217,13 +228,11 @@ void sending_func(int sckt)
 }
 
 
-void login(struct message msg, std::string psswd, int sckt, int type)
+void login(struct message msg, std::string psswd, int sckt)
 {
 	std::string command, input, server_IP, server_port;
 	int signup;
 	bool quit = false;
-	if(type == 1)
-		goto login;
 
 	while(1)
 		{
@@ -231,31 +240,26 @@ void login(struct message msg, std::string psswd, int sckt, int type)
 
 			send(sckt, &msg, sizeof(msg), 0);
 			recv(sckt, &msg, sizeof(msg), 0);
-
 			if(msg.type == c_LO_ACK){
 				std::cout << msg.data << std::endl;
 				break;
 			}
 			else if(msg.type == c_LO_NACK)
 			{
-login:
-				std::cout << std::endl << msg.data << std::endl;
-				std::cout << "1: SIGNUP" <<std::endl << "2: LOGIN" << std::endl;
 
+				std::cout << std::endl << msg.data << std::endl;		
+				std::cout << "1: SIGNUP" <<std::endl << "2: LOGIN" << std::endl;
 				std::getline(std::cin, input);
 				std::stringstream ss1(input);
 				ss1 >> signup;
 
 				msg.signup = signup == 1 ? true : false;
-
-
 				std::string check;
 				do 
 				{
 					std::getline(std::cin, input);
 					std::stringstream ss(input);
 					ss >> check >> client_ID >> psswd >> server_IP >> server_port;
-
 
 					if(check == "/quit"){
 						create_msg(msg, c_QUIT, 0, client_ID, "", "");
@@ -269,14 +273,67 @@ login:
 					else if(check != "/login")
 					 std::cout << "Login first" << std::endl;
 
-							
 				}while(check != "/login");
 
 				if(quit)
 					break;
 			}
 		}
+
 }
 
+void login_2(struct message msg, std::string psswd, int sckt)
+{
+	std::string command, input, server_IP, server_port;
+	int signup;
+	bool quit = false;
 
-//when logging out cant log in with the same user
+	while(logged_in != 1)
+	{	
+		std::cout << "1: SIGNUP" <<std::endl << "2: LOGIN" << std::endl;
+		std::getline(std::cin, input);
+		if(logged_in == 1 || exited == 1)
+			break;
+		std::stringstream ss1(input);
+		ss1 >> signup;
+
+		msg.signup = (signup == 1) ? true : false;
+
+		std::string check;
+
+		do
+		{
+			std::getline(std::cin, input);
+			if(logged_in == 1 || exited == 1){
+				quit = true;
+				break;
+			}
+
+			std::stringstream ss(input);
+			ss >> check >> client_ID >> psswd >> server_IP >> server_port;
+
+			if(check == "/quit")
+			{
+				create_msg(msg, c_QUIT, 0, client_ID, "", "");
+				send(sckt, &msg, sizeof(msg), 0);
+				quit = true;
+				exited = 1;
+				break;
+			}
+			else if(check == "/login")
+			{
+				std::cout << client_ID;
+				create_msg(msg, c_LOGIN, psswd.length(), client_ID, "", psswd);
+				send(sckt, &msg, sizeof(msg), 0);
+			}
+			
+			if(check != "/login")
+				std::cout << "Login first" << std::endl;				
+
+		}while(check != "/login");
+
+		if(quit)
+			break;
+	}
+}
+// LOST CONNECTION AFTER TIMEOUT, ASK USER TO RE ESTABLISH CONNECTION
