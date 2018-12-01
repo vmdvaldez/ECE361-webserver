@@ -27,7 +27,11 @@
 #define MAX_NAME 50
 #define MAX_DATA 1000
 #define BACKLOG 20
+<<<<<<< HEAD
 #define TIMEOUT 30
+=======
+#define TIMEOUT 10000
+>>>>>>> 135378b4598a8b5801f00075d970fed236e1d530
 
 #define time std::chrono::high_resolution_clock::time_point 
 
