@@ -490,19 +490,6 @@ void f_logout(struct message msg, int socket)
 	int client_sckt;
 	std::vector<std::string> session_ID;
 
-<<<<<<< HEAD
-
-	for(auto x : hash_sesh)
-		for(auto y : x.second.u_s)
-			if(y.user == source){
-				client_sckt = y.socket;
-				session_ID.push_back(x.second.session_ID);
-			}
-			
-	for(int i = 0; i < session_ID.size(); ++i){		
-		unsigned long found_index = hash_lookup(session_ID[i]);
-=======
->>>>>>> 135378b4598a8b5801f00075d970fed236e1d530
 
 	for(auto x : hash_sesh)
 		for(auto y : x.second.u_s)
@@ -514,36 +501,6 @@ void f_logout(struct message msg, int socket)
 	for(int i = 0; i < session_ID.size(); ++i){		
 		unsigned long found_index = hash_lookup(session_ID[i]);
 
-
-		struct hash_elem * h_elem = &hash_sesh[found_index];
-
-		std::vector<user_socket>::iterator it;
-		for(it = h_elem->u_s.begin(); it != h_elem->u_s.end(); ++it)
-			if(it->socket == client_sckt)
-				break;
-
-		h_elem->u_s.erase(it);
-
-		
-		if(h_elem->u_s.size() == 0)
-		{
-			hash_sesh.erase(found_index);
-			rev_hash_sesh.erase(session_ID[i]);
-		}
-
-	}
-
-	std::vector<struct user_socket>::iterator it;
-	for(it = client_sockets.begin(); it != client_sockets.end(); ++it)
-		if(it->socket == socket)
-			break;
-
-	it->user = "21312321";
-	// client_sockets.erase(it);
-
-
-	gen_ACK(msg, c_LOGOUT_ACK, " ");
-	send(socket, &msg, sizeof(msg), 0);
 
 		struct hash_elem * h_elem = &hash_sesh[found_index];
 
