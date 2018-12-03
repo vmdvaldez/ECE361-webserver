@@ -336,4 +336,3 @@ void login_2(struct message msg, std::string psswd, int sckt)
 			break;
 	}
 }
-// LOST CONNECTION AFTER TIMEOUT, ASK USER TO RE ESTABLISH CONNECTION

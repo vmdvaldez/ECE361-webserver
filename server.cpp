@@ -53,7 +53,6 @@ int main(int argc, char** argv)
 	struct timeval tv;
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
-	// setsockopt(sckt, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 
 
 	while(1)
@@ -443,7 +442,7 @@ void f_quit(struct message msg, int socket)
 {
 	std::string source((char*)msg.source);
 
-	int client_sckt;
+	// int client_sckt;
 	std::vector<std::string> session_ID;
 
 
@@ -461,7 +460,7 @@ void f_quit(struct message msg, int socket)
 
 		std::vector<user_socket>::iterator it;
 		for(it = h_elem->u_s.begin(); it != h_elem->u_s.end(); ++it)
-			if(it->socket == client_sckt)
+			if(it->socket == socket)
 				break;
 
 		h_elem->u_s.erase(it);
@@ -491,7 +490,7 @@ void f_logout(struct message msg, int socket)
 {
 	std::string source((char*)msg.source);
 
-	int client_sckt;
+	// int client_sckt;
 	std::vector<std::string> session_ID;
 
 
@@ -509,7 +508,7 @@ void f_logout(struct message msg, int socket)
 
 		std::vector<user_socket>::iterator it;
 		for(it = h_elem->u_s.begin(); it != h_elem->u_s.end(); ++it)
-			if(it->socket == client_sckt)
+			if(it->socket == socket)
 				break;
 
 		h_elem->u_s.erase(it);
@@ -529,7 +528,7 @@ void f_logout(struct message msg, int socket)
 			break;
 
 	it->user = "\0";
-	// client_sockets.erase(it);
+
 
 
 	gen_ACK(msg, c_LOGOUT_ACK, " ");
@@ -558,4 +557,4 @@ void f_pm(struct message msg, int socket)
 	}
 		
 }
-//CLOSE SOCKET PROPERLY
+
